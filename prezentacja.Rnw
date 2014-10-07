@@ -1,0 +1,483 @@
+\documentclass{beamer}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{lmodern}
+\usepackage{polski}
+\usepackage{graphicx} 
+\usepackage{color}
+\usepackage{attrib}
+
+\begin{document}
+
+\newcommand{\RR}{\ensuremath{\mathbb{R}^d}}
+
+\author{Daniel Kosiorowski, Zygmunt Zawadzki}
+\title{Odporna eksploracja danych z wykorzystaniem pakietu DepthProc}
+
+\begin{frame}
+  \titlepage
+  
+<<echo=FALSE,warning=FALSE,message=FALSE>>=
+library(knitr)
+library(grid)
+library(DepthProc)
+library(robust)
+library(magrittr)
+
+knit_hooks$set(small.mar = function(before, options, envir) {
+    if (before) par(cex = 1.5, lwd = 2, mar = c(4,4,3,1))  # smaller margin on top and right
+})
+
+opts_chunk$set( tidy = TRUE,small.mar = TRUE, fig.width = 6.5, fig.height = 3,fig.pos='center', cache = TRUE, echo = FALSE, message = FALSE)
+
+
+
+
+
+# Borrowed from http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+@
+  
+  
+\end{frame}
+
+\section{Statystyka odporna}
+
+\begin{frame}
+  \frametitle{Statystyka odporna}
+  
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Przykład - korelacja}
+  
+Dwadzieścia obserwacji z dwuwymiarowego rozkładu noramalnego ze współczynnikiem korelacji 0.8. Dwie obserwacje zastąpiono obserwacjami odstającymi. Zmiana jedynie 10\% oberwacji spowodowała drastyczną różnicę we wskazaniach klasycznego estymatora, natomiast w przypadku metody odpornej, wpływ obserwacji odstających został mocno ograniczony.
+
+<<echo=FALSE>>=
+set.seed(123)
+cov = cbind(c(1,0.8),c(0.8,1))
+x = mvrnorm(20, c(0,0), cov)
+
+
+corRFnc = function(x)
+{
+  covMcd(x) %>% "$"(cov) %>% 
+    cov2cor %>%
+    "["(2,1) %>% round(2)
+}
+
+xp = 0.6
+par(mfrow = c(1,2), mar = c(2,2,2,1))
+plot(x, pch = 19, col = "red", xlab = "", ylab = "")
+text(xp,-1.2, paste("Korelacja: ", round(cor(x)[2,1],2)))
+text(xp,-1.6, paste("Korelacja odporna: ", corRFnc(x)))
+
+x2 = x[order(x[,2]),]
+x2[1,2] = -x2[1,2]
+x2[20,2] = -x2[20,2]
+plot(x2, pch = 19, col = "blue", xlab = "", ylab = "")
+text(xp,-1.2, paste("Korelacja: ", round(cor(x2)[2,1],2)))
+text(xp,-1.6, paste("Korelacja odporna: ", corRFnc(x2)))
+@
+\end{frame}
+
+\begin{frame}
+  \frametitle{Wykres kwantyl-kawntyl}
+
+Bardzo użyteczną metodą na etapie eksploracji danych jest wykres kwantyl-kwantyl, pozwalający w graficzny sposób sprawdzić, czy dane mogą być generowane przez zakaładny rozkład, lub czy dwie próby pochodzą z tego samego rozkładu.
+
+<<fig.height = 2>>=
+set.seed(123)
+x = rnorm(200)
+y = rt(200, df = 3)
+yt2 = rt(200, df = 3)
+par(mfrow = c(1,2), mar = c(4,4,1,1))
+qqplot(x,y, xlab = "Normal", ylab = "t(5)")
+qqplot(y,yt2, xlab = "t(5)", ylab = "t(5)")
+@
+
+Posiada on jednak tę kluczową wadę, że do jego konstrukcji wymagany jest kwantyl - przez co trudno uogólnić taki wykres na przypadek wielowymiarowy. Definicja kwantyla opiera się na porządku liniowym liczb rzeczywistych w jednym wymierze. W wielu wymiarach nie ma prostej definicji takiego porządku, przez co trudno zastosowanie tego typu wykresu do danych wielowymiarowych jest niemożliwe.
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Koncepcja głębi danych}
+  
+Statystyczna funkcja głębi ma na celu kompensacje braku porządku liniowego w $\RR, d \leq 2$. Zakładając pewien rozkład prawdopodobieństwa $F$ na $\RR$, funkcja głębi $D(x,F)$ umożliwia porządkowanie punktów na zasadzie odstawania od centrum rozkładu. 
+
+W przypadku próby $X^n = \{x_1,...,x_n\}$ rozkład F zastępowany jest rozkładem $F_n$ wyznaczonym na podstawie $X^n$.
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Najprostszy przykład - głebia Euklidesa}
+
+\begin{columns}[T] % align columns
+\begin{column}{.55\textwidth}
+
+Głębia Euklidesa:
+\begin{equation}
+D_E(x, X^n) = \frac{1}{1+||x - \bar{x}||},
+\end{equation}
+
+gdzie $\bar{x}$ to wektor średnich z próby $X^n$.\\ 
+\vspace{30pt}
+Zaletą tej głębi jest jedynie szybkość obliczeń. Jednak w praktycznych przypadkach głębia Euklidesa nie ma zastosowania - nie radzi sobie z eliptycznym kształtem danych, lub skośnymi danymi.
+
+\end{column}%
+\hfill%
+\begin{column}{.48\textwidth}
+
+  \begin{figure}
+    \centering
+    \vspace{-30pt}
+    \includegraphics[width=1\textwidth]{contours/e1}
+  \end{figure}
+  \begin{figure}
+    \vspace{-60pt}
+    \centering
+    \includegraphics[width=1\textwidth]{contours/e2}
+  \end{figure}
+
+\end{column}%
+\end{columns}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}
+  \frametitle{Głębia Mahalanobisa}
+
+\begin{columns}[T] % align columns
+\begin{column}{.55\textwidth}
+
+Głębia Mahalanobisa zdefiniowana jest jako:
+\begin{equation}
+D_E(x, X^n) = \frac{1}{1+(x-\bar{x})^T\Sigma (x-\bar{x})},
+\end{equation}
+
+gdzie $\bar{x}$ to wektor średnich z próby $X^n$.\\ 
+\vspace{20pt}
+Głębia Mahalanobisa podobnie jak głębia Euklidesa opiera się na odległości. W tym przypadku by otrzymać wiarygodne wartości, należałoby zastosowac odporny estmator macierzy kowariancji, jak również odporną miarę położenia. W takim przypadku ciężko zdefiniować nową miarę położenia opartą na funckji głębi.
+
+\end{column}%
+\hfill%
+\begin{column}{.48\textwidth}
+
+  \begin{figure}
+    \centering
+    \vspace{-30pt}
+    \includegraphics[width=1\textwidth]{contours/m1}
+  \end{figure}
+  \begin{figure}
+    \vspace{-60pt}
+    \centering
+    \includegraphics[width=1\textwidth]{contours/m2}
+  \end{figure}
+
+\end{column}%
+\end{columns}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}
+  \frametitle{Głębia Tukey'a}
+
+<<fig.height=5>>=
+set.seed(123)
+
+x = mvrnorm(10, c(0,0), diag(2))
+dp = depthTukey(x, exact = TRUE)
+plot(x, col = dp *10, pch = 19, xlab = "", ylab = "")
+
+par(mar = c(2,1,1,1))
+i = 7
+a = +0.5
+abline(b = (x[i,2]-a)/x[i,1],a = a, col = "blue")
+
+@
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}
+  \frametitle{Głębia Tukey'a}
+
+Funkkcją głębi przyporządkowywującej punktowi $x$ najmniejsze prawdopodobieństwo zgromadzonena domkniętej półprzestrzeni, do której brzegu należy ten punkt, nazywamy głębią domkniętej półprzestrzeni Tukeya.
+
+\begin{columns}[T] % align columns
+\begin{column}{.45\textwidth}
+\vspace{-20pt}
+<<fig.height=2.5, fig.width=2.5, dev.args=list(pointsize = 5)>>=
+set.seed(123)
+
+x = mvrnorm(10, c(0,0), diag(2))
+dp = depthTukey(x, exact = TRUE)
+plot(x, col = dp *10, pch = 19, xlab = "", ylab = "")
+
+par(mar = c(1,1,1,1))
+i = 7
+a = +0.5
+abline(b = (x[i,2]-a)/x[i,1],a = a, col = "blue")
+
+@
+
+\end{column}%
+\hfill%
+  \begin{column}{.55\textwidth}
+  
+  Ta funckja głębi nie opiera się na infrmacji metrycznej, dotyczącej odległości pomiędzy punktami, tylko na ich wzajemnym położeniu. Dlatego też głębia punktu leżącego z dala od chmury punktów, będzie taka sama jak punktu leżącego na jej skraju. 
+  
+  \end{column}%
+\end{columns}
+
+\end{frame}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}
+  \frametitle{Wykres głębia-versus-głebia}
+
+Wykres głębia-versus-głębia (ddPlot) porównuje wartości funckji głębi punktu $x$, przy założeniu, że punkt generowany jest przez rozkład F, lub G (w praktycznych przypadkach F i G są zastępowane estymatorami z próby). Jeżeli $F = G$, wtedy ddPlot jest odcinkiem o końcach w $(0,0)$ i $(1,1)$.
+
+
+<<fig.width=4, fig.height=2.5>>=
+set.seed(123)
+cov = cbind(c(1,0.8),c(0.8,1))
+x = mvrnorm(200, c(0,0), cov)
+y = mvrnorm(200, c(0,0), cov)
+p = ddPlot(x,y, method = "Tukey", exact = TRUE)
+getPlot(p) + ggtitle("DDPlot - te same rozkłady") + theme_bw(10)
+@
+
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Wykres głębia-versus-głebia CD.}
+
+<<fig.width=4.5, fig.height=3.5>>=
+set.seed(123)
+
+font_size = 7
+cov = cbind(c(1,0.8),c(0.8,1))
+x = mvrnorm(200, c(0,0), cov)
+y = mvrnorm(200, c(0,0), cov)
+p = ddPlot(x,y, method = "Tukey", exact = TRUE)
+p = getPlot(p) + ggtitle("DDPlot - te same rozkłady") + theme_bw(font_size)
+
+x = mvrnorm(200, c(0,0), cov)
+y = mvrnorm(200, c(0,0), cbind(c(1,-0.8),c(-0.8,1)))
+p2 = ddPlot(x,y, method = "Tukey", exact = TRUE)
+p2 = getPlot(p2) + ggtitle("DDPlot - dwa rozkłady normalne\nRóżne macierze korelacji") + theme_bw(font_size)
+
+
+# borrowed from https://github.com/hadley/bigvis/blob/master/R/challenge.r
+rchallenge <- function(n) {
+  nt <- rbinom(1, n, 1 / 3)
+  ngamma <- n - nt
+
+  spike <- 2 * rt(nt, df = 2) + 15
+  spike[spike < 0] <- 0
+
+  slope <- rgamma(ngamma, 2, 1/3)
+
+  c(spike, slope)
+}
+
+x = cbind(rchallenge(200),rchallenge(200)*2)
+y = cbind(rchallenge(200),rchallenge(200))
+
+
+p3 = ddPlot(x,y, method = "Tukey", exact = TRUE)
+p3 = getPlot(p3) + ggtitle("Niestandardowe rozkłady\nróżniące się rozproszeniem") + theme_bw(font_size)
+
+x = cbind(rchallenge(200),rchallenge(200))
+y = cbind(rchallenge(200),rchallenge(200))
+
+p4 = ddPlot(x,y-2, method = "Tukey", exact = TRUE)
+p4 = getPlot(p4) + ggtitle("Niestandardowe rozkłady\nróżniące się położeniem") + theme_bw(font_size)
+
+
+p$layers[[1]]$geom_params$size = 1.5
+p2$layers[[1]]$geom_params$size = 1.5
+p3$layers[[1]]$geom_params$size = 1.5
+p4$layers[[1]]$geom_params$size = 1.5
+
+multiplot(p,p2,p3,p4, cols = 2)
+@
+
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}
+\frametitle{Obszar centralny}
+
+
+\begin{definition}
+Obszarem centralnym rzędu $\alpha$, $PC_F(\alpha)$ nazywamy zbiór punktów $x \in \RR$, takich, że $D(x, F) \geq \alpha$.
+\end{definition}
+
+<<>>=
+set.seed(123)
+N = 50
+sigma = cbind(c(1,0.8),c(0.8,1))
+x = mvrnorm(N, mu = c(0,0), sigma)
+dp = (depth(x, method = "Tukey", exact = TRUE)>0.1)
+
+par(mar = c(2,2,2,2))
+plot(x,col = dp +1, pch = 19, xlab = "", ylab = "")
+
+# rysowanie otoczki wypuklej
+hull = geometry:::convhulln(x[dp,])
+xx = x[dp, ]
+xx = cbind(xx[hull,1], xx[hull,2])
+points(xx, col = "blue", pch = 19)
+
+# zaznaczenie obwodki na otoczce
+points(x[dp,], col = "red", pch = 1)
+@
+
+\end{frame}
+
+
+
+\begin{frame}
+\frametitle{Obszar centralny}
+
+
+\begin{definition}
+Obszarem centralnym rzędu $\alpha$, $PC_F(\alpha)$ nazywamy zbiór punktów $x \in \RR$, takich, że $D(x, F) \geq \alpha$.
+\end{definition}
+
+<<>>=
+library(dplyr)
+library(magrittr)
+library(reshape)
+
+data(inf.mort)
+data(maesles.imm)
+data(under5.mort)
+
+inf.mort = cbind(name = rownames(inf.mort), inf.mort)
+maesles.imm = cbind(name = rownames(maesles.imm), maesles.imm)
+under5.mort = cbind(name = rownames(under5.mort), under5.mort)
+
+inf.mort = melt(inf.mort)
+maesles.imm = melt(maesles.imm)
+maesles.imm[,3] = (100 - maesles.imm[,3])*10
+under5.mort = melt(under5.mort)
+
+mrg = merge(maesles.imm, under5.mort, by = c("name","variable"))
+mrg = merge(mrg, inf.mort, by = c("name","variable"))
+
+
+scWrap = function(x) scaleCurve(x[,3:5], name = as.character(x[1,2]))
+sc_curves = mrg %>% group_by(variable) %>% do(scale_curves = scWrap(.))
+
+scale_curves = sc_curves$scale_curves
+
+Reduce("%+%", scale_curves)
+@
+
+\end{frame}
+
+
+
+
+\begin{frame}
+  \frametitle{Wielowymiarowa mediana i obszar centralny}
+
+\begin{definition}
+  Punkt o najwyższej wartości funkcji głębi będziemy utożsamiać z wielowymiarową medianą.
+\end{definition}
+
+\begin{definition}
+  Zbiór punktów 
+\end{definition}
+
+\end{frame}
+
+
+
+
+\begin{frame}
+<<>>=
+library(xts)
+
+data = read.csv("bar5.csv")
+time = data[,1] %>% strptime(format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+
+close = xts(as.matrix(data[,-1]), order.by = time)
+close = apply.daily(close, function(x) x[nrow(x),])
+close = as.matrix(close)
+
+returns = apply(close,2, function(x) diff(log(x)))
+returns = t(returns)
+
+dmbd = depthMBD(returns)
+@
+
+<<fig.height = 6>>=
+plot(dmbd, add_lines = FALSE, band_lim = c(0, 0.75), colors = c("red","blue","green"), ylim = c(-0.2,0.2))
+lines(dmbd@u[which.max(dmbd),], lwd = 0.5)
+par(mfrow = c(2,1))
+
+@
+\end{frame}
+
+\end{document}
