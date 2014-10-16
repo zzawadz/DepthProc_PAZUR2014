@@ -8,8 +8,11 @@
 \usepackage{graphicx} 
 \usepackage{color}
 \usepackage{attrib}
+\usepackage{ragged2e}
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
+
+\addtobeamertemplate{block begin}{}{\justifying}
 
 \begin{document}
 
@@ -39,7 +42,7 @@ library(reshape2)
 library(magrittr)
 library(DepthProc)
 library(RColorBrewer)
-library(hdrcde)
+#library(hdrcde)
 
 knit_hooks$set(small.mar = function(before, options, envir) {
     if (before) par(cex = 1.5, lwd = 2, mar = c(4,4,3,1))  # smaller margin on top and right
@@ -119,9 +122,11 @@ rchallenge <- function(n) {
 \begin{frame}
   \frametitle{Statystyka odporna}
   
-Procedury statystyczne konstruuje się przy założeniu, że spełniane są określone warunki dotyczące mechanizmu generującego dane (np. dane generowane są przez rozkład normalny, i są niezależne od siebie).
+Procedury statystyczne konstruuje się przy założeniu, że spełniane są określone warunki dotyczące mechanizmu generującego dane (np. dane generowane są przez rozkład normalny i są niezależne od siebie).
+\vspace{15pt}
 
 W praktyce, możemy mieć do czynienia z odstępstwem od przyjmowanych założeń. Przykładowo w danych mogą występować obserwacje odstające, znacząco odbiegające od reszty danych. W takiej systuacji jakość procedury statystycznej może znacząco się obniżyć (utrata efektywności estymatora, wzrost obciążenia, itp).
+\vspace{15pt}
 
 Celem statystyki odpornej jest zaproponowanie procedur dających wiarygodne oszacowania również w  przypadku gdy rozkład generujący dane odbiega od zakładanego rozkładu.
 
@@ -138,6 +143,34 @@ Celem statystyki odpornej jest zaproponowanie procedur dających wiarygodne osza
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+\begin{frame}
+\frametitle{Statystyka odporna - Punkt Załamania}
+\small
+Niech ${{{X}}^{n}}$ będzie próbą o rozmiarze $n$. \textbf{Punkt załamania próby skończonej} (BP - ang. breakdown point) estymatora $T$ zdefiniowany jest jako:
+$$BP(T,{{X}^{n}})=\left\{ \frac{m}{n}:\left\| T(X_{m}^{n})-T({{X}^{n}}) \right\|>\delta  \right\},$$
+ gdzie $X_{m}^{n}$ jest zanieczyszczoną próbą powstałą przez zastąpienie $m$ punktów z ${{ {X}}^{n}}$ dowolnymi wartościami, $\left\| \cdot  \right\|$ określa normę, $\delta $ to określony próg.
+
+\begin{center}
+\normalsize
+PUNKT ZAŁAMANIA PRÓBY SKONCZONEJ ESTYMATORA – najmniejsza 
+frakcja złych obserwacji w próbie, która sprawia, że estymator staje się bezużyteczny –
+np. jego obciążenie staje się zbyt wysokie.
+\vspace{15pt}
+
+\begin{block}{Przykładowe BP}
+\centering
+BP dla odchylenia standardowego wynosi $\frac{1}{n} \approx 0$
+
+BP dla mediany wynosi $\approx 50\%$
+\end{block}
+
+
+\end{center}
+
+Więcej na temat badania odporności procedury statystycznej można znaleźć w \cite{DK2012}
+
+\end{frame}
 
 \begin{frame}
   \frametitle{Statystyka odporna - przykład - korelacja}
@@ -173,42 +206,14 @@ text(xp,-1.6, paste("Korelacja odporna: ", corRFnc(x2)))
 \end{frame}
 
 
-\begin{frame}
-\frametitle{Statystyka odporna - Punkt Załamania}
-\small
-Niech ${{{X}}^{n}}$ będzie próbą o rozmiarze $n$. \textbf{Punkt załamania próby skończonej} (BP - ang. breakdown point) estymatora $T$ zdefiniowany jest jako:
-$$BP(T,{{X}^{n}})=\left\{ \frac{m}{n}:\left\| T(X_{m}^{n})-T({{X}^{n}}) \right\|>\delta  \right\},$$
- gdzie $X_{m}^{n}$ jest zanieczyszczoną próbą powstałą przez zastąpienie punktów z ${{ {X}}^{n}}$ dowolnymi wartościami, $\left\| \cdot  \right\|$ określa normę, $\delta $ to określony próg.
-
-\begin{center}
-\normalsize
-PUNKT ZAŁAMANIA PRÓBY SKONCZONEJ ESTYMATORA – najmniejsza 
-frakcja złych obserwacji w próbie, która sprawia, że estymator staje się bezużyteczny –
-np. jego obciążenie staje się zbyt wysokie.
-\vspace{20pt}
-
-
-\begin{block}{Przykładowe BP}
-\centering
-BP dla odchylenia standardowego wynosi $\frac{1}{n} \approx 0$
-
-BP dla mediany wynosi $\approx 50\%$
-\end{block}
-
-
-\end{center}
-
-Więcej na temat badania odporności procedury statystycznej można znaleźć w \cite{DK2012}
-
-\end{frame}
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 \begin{frame}
 \frametitle{Eksploracyjna analiza danych}
 
-Techniki \textbf{Eksploracyjnej Analizy Danych} (EAD) pozwalają lepiej zrozumieć dane z którymi ma się do czynienia. Stosunkowo proste wykresy jak histogram czy boxplot pozwalają w przybliżony sposób określić rozkład danych, lub sprawdzić czy występują obserwacje odstające\cite{Tukey1980}. 
+Techniki \textbf{Eksploracyjnej Analizy Danych} (\textbf{EAD}) pozwalają lepiej zrozumieć dane z którymi ma się do czynienia. Stosunkowo proste wykresy jak histogram czy boxplot pozwalają w przybliżony sposób określić rozkład danych, lub sprawdzić czy występują obserwacje odstające\cite{Tukey1980}. 
+\vspace{15pt}
 
 Wiele użytecznych i prostych w interpretacji technik EAD jest ograniczona jedynie do danych jednowymiarowych (histogram, boxplot, wykres kwantyl-kwantyl), bądź dwuwymiarowych (heatmapy). Z praktycznego punktu widzenia wartościowe byłoby uogólnienie ich na większą liczbę wymiarów, zachowując jednocześnie prostotę interpretacji.
 
@@ -231,9 +236,11 @@ qqplot(x,y, xlab = "Normal", ylab = "t(5)")
 qqplot(y,yt2, xlab = "t(5)", ylab = "t(5)")
 @
 
-Posiada on jednak tę kluczową wadę, że do jego konstrukcji wymagany jest kwantyl - przez co trudno uogólnić taki wykres na przypadek wielowymiarowy. Definicja kwantyla opiera się na porządku liniowym liczb rzeczywistych w jednym wymierze. W wielu wymiarach nie ma prostej definicji takiego porządku, przez co zastosowanie tego typu wykresu do danych wielowymiarowych jest niemożliwe.
+Posiada on jednak tę kluczową wadę, że do jego konstrukcji wymagany jest kwantyl - przez co trudno uogólnić taki wykres na przypadek wielowymiarowy. Definicja kwantyla opiera się na porządku liniowym liczb rzeczywistych w jednym wymierze. W wielu wymiarach nie ma prostej definicji takiego porządku, przez co wykres kwantyl-kwantyl ograniczony jest jedynie do rozkładów jednowymiarowych.
 
 \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}
   \frametitle{Koncepcja głębi danych}
@@ -346,7 +353,7 @@ abline(b = (x[i,2]-a)/x[i,1],a = a, col = "blue")
 \hfill%
   \begin{column}{.55\textwidth}
   
-  Ta funckja głębi nie opiera się na infrmacji metrycznej, dotyczącej odległości pomiędzy punktami, tylko na ich wzajemnym położeniu. Dlatego też głębia punktu leżącego z dala od chmury punktów, będzie taka sama jak punktu leżącego na jej skraju. 
+  Ta funkcja głębi nie opiera się na infrmacji metrycznej, dotyczącej odległości pomiędzy punktami, tylko na ich wzajemnym położeniu. Dlatego też głębia punktu leżącego z dala od chmury punktów, będzie taka sama jak punktu leżącego na jej skraju. 
   
   \end{column}%
 \end{columns}
@@ -386,7 +393,7 @@ cov = cbind(c(1,0.8),c(0.8,1))
 x = mvrnorm(200, c(0,0), cov)
 y = mvrnorm(200, c(0,0), cov)
 p = ddPlot(x,y, method = "Tukey", exact = TRUE)
-getPlot(p) + ggtitle("DDPlot - te same rozkłady") + theme_bw(10)
+getPlot(p) + ggtitle("DDPlot - te same rozklady") + theme_bw(10)
 @
 
 \end{frame}
@@ -403,12 +410,12 @@ cov = cbind(c(1,0.8),c(0.8,1))
 x = mvrnorm(200, c(0,0), cov)
 y = mvrnorm(200, c(0,0), cov)
 p = ddPlot(x,y, method = "Tukey", exact = TRUE)
-p = getPlot(p) + ggtitle("DDPlot - te same rozkłady") + theme_bw(font_size)
+p = getPlot(p) + ggtitle("DDPlot - te same rozklady") + theme_bw(font_size)
 
 x = mvrnorm(200, c(0,0), cov)
 y = mvrnorm(200, c(0,0), cbind(c(1,-0.8),c(-0.8,1)))
 p2 = ddPlot(x,y, method = "Tukey", exact = TRUE)
-p2 = getPlot(p2) + ggtitle("DDPlot - dwa rozkłady normalne\nRóżne macierze korelacji") + theme_bw(font_size)
+p2 = getPlot(p2) + ggtitle("DDPlot - dwa rozklady normalne\nRozne macierze korelacji") + theme_bw(font_size)
 
 
 
@@ -418,13 +425,13 @@ y = cbind(rchallenge(200),rchallenge(200))
 
 
 p3 = ddPlot(x,y, method = "Tukey", exact = TRUE)
-p3 = getPlot(p3) + ggtitle("Niestandardowe rozkłady\nróżniące się rozproszeniem") + theme_bw(font_size)
+p3 = getPlot(p3) + ggtitle("Niestandardowe rozklady\nrozniace sie rozproszeniem") + theme_bw(font_size)
 
 x = cbind(rchallenge(200),rchallenge(200))
 y = cbind(rchallenge(200),rchallenge(200))
 
 p4 = ddPlot(x,y-2, method = "Tukey", exact = TRUE)
-p4 = getPlot(p4) + ggtitle("Niestandardowe rozkłady\nróżniące się położeniem") + theme_bw(font_size)
+p4 = getPlot(p4) + ggtitle("Niestandardowe rozklady\nrozniace sie polozeniem") + theme_bw(font_size)
 
 
 p$layers[[1]]$geom_params$size = 1.5
@@ -500,7 +507,7 @@ getPlot(sc) + scale_color_brewer(palette = "Set1")
 \begin{frame}
 [fragile]\frametitle{Krzywa skali - cd. łączenie wykresów}
 \small
-Standardowo funckja scaleCurve może posłużyć do estymacji krzywej skali dla jednego, lub dwóch zbiorów danych. By zestawić ze sobą więcej krzywych należy skorzystać z operatora $\%+\%$, który pozwala na "dodawanie" do siebie wykresów.
+Standardowo funkcja scaleCurve może posłużyć do estymacji krzywej skali dla jednego, lub dwóch zbiorów danych. By zestawić ze sobą więcej krzywych należy skorzystać z operatora $\%+\%$, który pozwala na "dodawanie" do siebie wykresów.
 
 <<echo=TRUE, fig.height=2.2>>=
 sc_z = scaleCurve(z,name = "z")
@@ -577,18 +584,18 @@ depthMedian(data2010, method = "Tukey")
 \begin{frame}
 \frametitle{Wielowymiarowy test Wilcoxona}
 
-Dla próby ${{\mathbf{X}}^{m}}=\{{{\mathbf{X}}_{1}},...,{{\mathbf{X}}_{m}}\}$ , ${{\mathbf{Y}}^{n}}=\{{{\mathbf{Y}}_{1}},...,{{\mathbf{Y}}_{n}}\}$, i połączonej próby ${\mathbf{Z}}={{\mathbf{X}}^{n}}\cup {{\mathbf{Y}}^{m}}$ \textbf{statystyka Wilcoxona} zdefiniowana jest jako
+Dla próby ${{{X}}^{m}}=\{{{{X}}_{1}},...,{{{X}}_{m}}\}$ , ${{{Y}}^{n}}=\{{{{Y}}_{1}},...,{{{Y}}_{n}}\}$, i połączonej próby ${{Z}}={{{X}}^{n}}\cup {{{Y}}^{m}}$ \textbf{statystyka Wilcoxona} zdefiniowana jest jako
 \begin{equation}
 S=\sum\limits_{i=1}^{m}{{{R}_{i}}},
 \label{eq4}
 \end{equation}
-gdzie ${R}_{i}$ oznacza rangę i-tej obserwacji, $i=1,...,m$ w połączonej próbie $\mathbf{Z}$:
+gdzie ${R}_{i}$ oznacza rangę i-tej obserwacji, $i=1,...,m$ w połączonej próbie ${Z}$:
 
 \begin{equation}
-R({{\mathbf{x}}_{l}})=  \#\left\{ {{\mathbf{z}}_{j}}\in {{\mathbf{Z}}}:D({{\mathbf{z}}_{j}},{\mathbf{Z}})\le D({{\mathbf{x}}_{l}},{\mathbf{Z}}) \right\}, l=1,...,m.
+R({{{x}}_{l}})=  \#\left\{ {{{z}}_{j}}\in {{{Z}}}:D({{{z}}_{j}},{{Z}})\le D({{{x}}_{l}},{{Z}}) \right\}, l=1,...,m.
 \end{equation}
 
-Rozkład $S$ jest symetryczny względem $E(S)=1/2m\text{(}m\text{+}n\text{+1)}$, a jego wariancja wynosi  ${{D}^{2}}(S)={1}/{12}\;mn(m+n+1).$ For theoretical properties statistic see \cite{Li:2004} and \cite{Zuo:2006}.\\
+Rozkład $S$ jest symetryczny względem $E(S)=1/2m\text{(}m\text{+}n\text{+1)}$, a jego wariancja wynosi  ${{D}^{2}}(S)={1}/{12}\;mn(m+n+1).$ Wiecej na ten temat można znaleźć w pracach \cite{Li:2004} i \cite{Zuo:2006}.\\
 
 
 \end{frame}
@@ -648,7 +655,7 @@ Formalną definicję można znaleźć w \cite{DK2012}.
 \begin{frame}
 [fragile]\frametitle{MBD - przykład}
 \small
-Poniżej zaprezentowano trajektorie bezrobocia rejestrowanego dla powiatów w Polsce od roku 2004 do 2013. Kolorami zaznaczono obszary w których znajduje się odpowiednio 100\%, 75\%, 50\% i 25\% najbardziej centralnych krzywych. Szerokość poszczególnych pasm (wykres po prawej) zmienia się w podobny sposób, co sugeruje, że pod względem zatrudnienia różnice pomiędzy powiatami na przestrzeni lat utrzymują się na zbliżonym poziomie.
+Poniżej zaprezentowano trajektorie bezrobocia rejestrowanego dla powiatów w Polsce od roku 2004 do 2013. Kolorami zaznaczono obszary w których znajduje się odpowiednio 100\%, 75\%, 50\% i 25\% najbardziej centralnych krzywych. Szerokość poszczególnych pasm zmienia się w podobny sposób, co sugeruje, że pod względem zatrudnienia różnice pomiędzy powiatami na przestrzeni lat utrzymują się na zbliżonym poziomie.
 
 <<>>=
 data = read.csv2("dane_GUS.csv", dec =  ",", na.strings = "-", head = TRUE)
@@ -657,15 +664,15 @@ mode(data) = "numeric"
 data = na.omit(data)
 colors = brewer.pal(9,"YlOrRd") %>% tail(4)
 @
-
-<<fig.height = 2.5>>=
+\vspace{-15pt}
+<<fig.height = 4,cache=FALSE>>=
 dp_mbd = depthMBD(data)
 
-par(mfrow = c(1,2), mar = c(2,2,1,1))
+#par(mfrow = c(1,2), mar = c(2,2,1,1))
 plot(dp_mbd, band_lim = c(0,0.25,0.5,0.75), 
      col = colors, alpha = 0.8, add_lines = FALSE)
 lines(data[which.max(dp_mbd),], lwd = 2)
-plotBandWidth(dp_mbd, band_lim = c(0,0.25,0.5,0.75), colors = colors)
+#plotBandWidth(dp_mbd, band_lim = c(0,0.25,0.5,0.75), colors = colors)
 @
 \end{frame}
 
@@ -684,6 +691,19 @@ system.time(d <- depth(x))
 system.time(d <- depth(x, threads = 1))
 @
 \end{frame}
+
+\begin{frame}
+\frametitle{Co dalej?}
+
+\begin{itemize}
+\item \textbf{Odporna regresja wykorzystująca głębię regresyjną} - w DepthProc dostępna wersja 2d.
+\item \textbf{Krzywa asymetrii.}
+\item \textbf{Głębie lokalne.}
+\end{itemize}
+
+
+\end{frame}
+
 
 \begin{frame}
 [allowframebreaks]
